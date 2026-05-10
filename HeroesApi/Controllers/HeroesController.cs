@@ -10,8 +10,15 @@ namespace HeroesApi.Controllers;
 [Route("api/[controller]")]
 public class HeroesController : ControllerBase {
     [HttpGet]
-    public ActionResult<List<Hero>> GetAll() {
-        return Ok(HeroesStore.Heroes);
+    public ActionResult<List<Hero>> GetAll([FromQuery] string? universe = null)
+{
+        var heroes = HeroesStore.Heroes.AsEnumerable();
+
+        if(!string.IsNullOrWhiteSpace(universe))
+        {
+            heroes = heroes.Where(h => h.Universe.ToString().Equals(universe, StringComparison.OrdinalIgnoreCase));
+        }
+        return Ok(heroes.ToList());
     }
     [HttpGet("{id}")]
     public ActionResult<Hero> GetById(int id) {
@@ -39,13 +46,16 @@ public class HeroesController : ControllerBase {
         });
     }
     [HttpGet("serialize")]
-    public ActionResult GetSerialize() {
-        var options = new JsonSerializerOptions {
+    public ActionResult GetSerialize()
+    {
+        var options = new JsonSerializerOptions
+        {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             WriteIndented = true,
             Converters = { new JsonStringEnumConverter() }
         };
-        var hero = new Hero {
+        var hero = new Hero
+        {
             Id = 99,
             Name = "Тестовый герой",
             RealName = "Студент",
@@ -57,10 +67,22 @@ public class HeroesController : ControllerBase {
         };
         string serialized = JsonSerializer.Serialize(hero, options);
         var deserialized = JsonSerializer.Deserialize<Hero>(serialized, options);
-        return Ok(new {
+        return Ok(new
+        {
             serializedJson = serialized,
             deserializedObject = deserialized,
             internalNotesAfterDeserialize = deserialized?.InternalNotes ?? "null - поле было проигнорировано"
         });
+    }
+    [HttpGet("search")]
+    public ActionResult<List<Hero>> SearchByName([FromQuery] string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return BadRequest(new { message = "Параметр name обязателен" });
+        }
+        var result = HeroesStore.Heroes.Where(h => h.Name.Contains(name, StringComparison.OrdinalIgnoreCase))
+        .ToList();
+        return Ok(result);
     }
 }
